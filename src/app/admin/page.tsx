@@ -36,7 +36,7 @@ export default async function AdminPanelPage() {
     }),
     prisma.question.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { author: { select: { name: true } }, _count: { select: { answers: true } } }
+      include: { user: { select: { name: true } }, _count: { select: { answers: true } } }
     }),
     prisma.event.findMany({
       orderBy: { date: 'asc' },
@@ -81,8 +81,8 @@ export default async function AdminPanelPage() {
         memberCount: g._count.members, createdAt: g.createdAt.toISOString(),
       }))}
       questions={questions.map(q => ({
-        id: q.id, title: q.title, authorName: q.author.name,
-        answerCount: q._count.answers, solved: q.solved,
+        id: q.id, title: q.title, authorName: q.user.name,
+        answerCount: q._count.answers, solved: false,
         createdAt: q.createdAt.toISOString(),
       }))}
       events={events.map(e => ({
