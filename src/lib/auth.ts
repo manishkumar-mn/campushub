@@ -1,13 +1,11 @@
 import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import Google from 'next-auth/providers/google'
-import { PrismaAdapter } from '@auth/prisma-adapter'
 import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
-  adapter: PrismaAdapter(prisma),
   session: { strategy: 'jwt' },
   pages: {
     signIn: '/login',
@@ -54,11 +52,40 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
+    async signIn({ user, account }) {
+      // For Google OAuth: auto-create user in DB if they don't exist
+      if (account?.provider === 'google') {
+        try {
+          const existingUser = await prisma.user.findUnique({
+            where: { email: user.email! },
+          })
+          if (!existingUser) {
+            const newUser = await prisma.user.create({
+              data: {
+                name: user.name ?? 'User',
+                email: user.email!,
+                image: user.image ?? null,
+                role: 'STUDENT',
+              },
+            })
+            user.id = newUser.id
+          } else {
+            user.id = existingUser.id
+            ;(user as any).role = existingUser.role
+            ;(user as any).branch = existingUser.branch
+          }
+        } catch (e) {
+          console.error('Google signIn DB error:', e)
+          return false
+        }
+      }
+      return true
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id as string
-        token.role = user.role as string
-        token.branch = user.branch
+        token.role = (user as any).role ?? 'STUDENT'
+        token.branch = (user as any).branch ?? null
       }
       return token
     },
