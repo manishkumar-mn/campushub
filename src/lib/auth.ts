@@ -69,14 +69,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               },
             })
             user.id = newUser.id
+            ;(user as any).role = 'STUDENT'
+            ;(user as any).branch = null
           } else {
             user.id = existingUser.id
             ;(user as any).role = existingUser.role
             ;(user as any).branch = existingUser.branch
           }
         } catch (e) {
-          console.error('Google signIn DB error:', e)
-          return false
+          // Log the actual error — do NOT block login
+          console.error('[CampusHub] Google signIn DB error:', JSON.stringify(e, Object.getOwnPropertyNames(e as object)))
+          // Still allow login even if DB sync fails (user gets basic session)
+          ;(user as any).role = 'STUDENT'
+          ;(user as any).branch = null
         }
       }
       return true
