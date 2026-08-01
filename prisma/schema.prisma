@@ -1,0 +1,275 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                 String              @id @default(uuid())
+  name               String
+  email              String              @unique
+  password           String?
+  image              String?
+  role               String              @default("STUDENT") // "STUDENT", "FACULTY", "ADMIN"
+  branch             String?             // e.g., "CSE", "ECE", "IT"
+  year               Int?                // e.g., 1, 2, 3, 4
+  bio                String?
+  skills             String?             // Comma-separated skills
+  github             String?
+  linkedin           String?
+  createdAt          DateTime            @default(now())
+
+  // Relations
+  notes              Note[]              @relation("NotesUploader")
+  reviews            Review[]
+  bookmarks          Bookmark[]
+  downloads          Download[]
+  groupsOwned        Group[]             @relation("GroupsOwner")
+  memberships        GroupMember[]
+  messages           Message[]
+  applications       Application[]
+  questions          Question[]
+  answers            Answer[]
+  lostFoundItems     LostFoundItem[]
+  eventRegistrations EventRegistration[]
+  resources          Resource[]          @relation("ResourceUploader")
+  notifications      Notification[]
+  accounts           Account[]
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+
+model Note {
+  id          String     @id @default(uuid())
+  title       String
+  description String
+  subject     String
+  branch      String     // e.g., "CSE", "ECE", "IT"
+  semester    Int        // e.g., 1 to 8
+  fileUrl     String
+  uploaderId  String
+  views       Int        @default(0)
+  downloadsCount Int     @default(0)
+  rating      Float      @default(0.0)
+  verified    Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+
+  // Relations
+  uploader    User       @relation("NotesUploader", fields: [uploaderId], references: [id], onDelete: Cascade)
+  reviews     Review[]
+  bookmarks   Bookmark[]
+  downloads   Download[]
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  rating    Int      // 1 to 5
+  comment   String
+  noteId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  // Relations
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Bookmark {
+  id        String   @id @default(uuid())
+  userId    String
+  noteId    String
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, noteId])
+}
+
+model Download {
+  id           String   @id @default(uuid())
+  userId       String
+  noteId       String
+  downloadedAt DateTime @default(now())
+
+  // Relations
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note         Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+}
+
+model Group {
+  id          String        @id @default(uuid())
+  name        String
+  description String
+  ownerId     String
+  category    String        // e.g., "Web Dev", "DSA", "Exam Prep"
+  memberLimit Int           @default(50)
+  image       String?       // Image URL or placeholder index
+  createdAt   DateTime      @default(now())
+
+  // Relations
+  owner       User          @relation("GroupsOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     GroupMember[]
+  messages    Message[]
+}
+
+model GroupMember {
+  id       String   @id @default(uuid())
+  userId   String
+  groupId  String
+  joinedAt DateTime @default(now())
+
+  // Relations
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+}
+
+model Message {
+  id            String   @id @default(uuid())
+  content       String
+  senderId      String
+  groupId       String
+  attachmentUrl String?
+  createdAt     DateTime @default(now())
+
+  // Relations
+  sender        User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  group         Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+}
+
+model Application {
+  id          String   @id @default(uuid())
+  companyName String
+  role        String
+  package     Float    // package in LPA, e.g., 12.5
+  deadline    DateTime
+  eligibility String   // e.g., "CGPA > 8.0, CSE/IT"
+  status      String   @default("APPLIED") // "APPLIED", "OA_CLEARED", "INTERVIEW", "SELECTED", "REJECTED"
+  userId      String
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Question {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  tags        String   // Comma-separated tags
+  anonymous   Boolean  @default(false)
+  userId      String
+  votes       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers     Answer[]
+}
+
+model Answer {
+  id         String   @id @default(uuid())
+  content    String
+  questionId String
+  userId     String
+  votes      Int      @default(0)
+  isBest     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  // Relations
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LostFoundItem {
+  id        String   @id @default(uuid())
+  itemName  String
+  type      String   // "LOST" or "FOUND"
+  image     String?
+  location  String
+  date      String   // e.g., "2026-06-23"
+  status    String   @default("OPEN") // "OPEN" or "RESOLVED"
+  contact   String
+  userId    String
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Event {
+  id          String              @id @default(uuid())
+  title       String
+  description String
+  venue       String
+  date        DateTime
+  organizer   String
+  image       String?
+  createdAt   DateTime            @default(now())
+
+  // Relations
+  registrations EventRegistration[]
+}
+
+model EventRegistration {
+  id           String   @id @default(uuid())
+  userId       String
+  eventId      String
+  registeredAt DateTime @default(now())
+
+  // Relations
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+}
+
+model Resource {
+  id         String   @id @default(uuid())
+  title      String
+  category   String   // "ECE", "CSE", "IT", "Mechanical", "Civil"
+  type       String   // "PYQ", "LAB_MANUAL", "INTERVIEW_PREP", "NPTEL", "EBOOK"
+  fileUrl    String
+  downloads  Int      @default(0)
+  uploaderId String
+  createdAt  DateTime @default(now())
+
+  // Relations
+  uploader   User     @relation("ResourceUploader", fields: [uploaderId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  userId    String
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
